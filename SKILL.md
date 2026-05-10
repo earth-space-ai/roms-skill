@@ -31,7 +31,9 @@ tags:
 > Skill author: Koutian Wu (ktwu01@gmail.com)
 > Skill version: 0.1.0-scaffold
 
-**What ROMS does:** Solves the hydrostatic, primitive equations of the ocean on a curvilinear horizontal grid with terrain-following ("sigma") vertical coordinates. Free-surface, finite-difference, split-explicit time stepping (a fast barotropic mode and a slower baroclinic mode). Designed for regional studies: coastal, shelf, basin, eddy-resolving and submesoscale-permitting domains.
+**What ROMS does:** Solves the hydrostatic, primitive equations of the ocean on a curvilinear **Arakawa C-grid** with **generalized terrain-following S-coordinates** (often loosely called "sigma", but actually stretched, controlled by `Vtransform`, `Vstretching`, `theta_s`, `theta_b`, `hc`). Free-surface, finite-difference, split-explicit time stepping (a fast barotropic mode and a slower baroclinic mode). Designed for regional studies: coastal, shelf, basin, eddy-resolving and submesoscale-permitting domains.
+
+**Heads up:** there are several historical ROMS forks (Rutgers/myroms, UCLA, AGRIF). This skill targets the **Rutgers/myroms** branch hosted at `github.com/myroms/roms`. The other forks have different build systems and file structures; do not conflate them.
 
 **Who this skill is for:** Researchers running a regional ocean configuration (estuary, shelf, regional basin), people coupling ROMS to wave (SWAN) or atmosphere (WRF) models via COAWST, and developers extending ROMS physics or boundary conditions.
 
@@ -54,7 +56,7 @@ tags:
 ├─ 📝 The ocean.in namelist
 │  └─ Read: reference/namelist-ocean-in.md
 │
-├─ 🔧 Compile-time CPP options (analytical vs data forcing, AKT_LDIFF, ...)
+├─ 🔧 Compile-time CPP options (analytical vs data forcing, mixing schemes, ...)
 │  └─ Read: reference/cpp-options.md
 │
 ├─ 🔗 Coupling: COAWST (with WRF + SWAN), ROMS-CICE, ESMF
@@ -107,6 +109,16 @@ roms/
 | reference/coupling.md | COAWST, ESMF/NUOPC |
 | reference/debugging.md | Common errors |
 
+## Critical agent gotchas (Gemini-reviewed)
+
+- **`build_roms.sh` (or `.bash`) is the standard build wrapper** for the legacy makefile path, used by most HPC tutorials and community recipes. CMake is newer and increasingly supported but not yet dominant.
+- **`varinfo.yaml` (or `varinfo.dat` in older versions) is required.** This metadata file maps internal variable names to NetCDF fields and is referenced from `ocean.in`. ROMS will not run without it.
+- **Application selection.** The application header (e.g., `upwelling.h`) is selected by setting `ROMS_APPLICATION` (env var or in `cppdefs.h`). Each app has its own `.h` header listing the CPP `#define` switches.
+- **NetCDF-Fortran is mandatory.** Build configs in `Compilers/` link both NetCDF-C and NetCDF-Fortran; either alone is insufficient.
+- **C-grid means staggered dimensions.** $u$, $v$, and $\rho$ points have different grid sizes in NetCDF output. Always check the dimension name (`xi_u`, `xi_v`, `xi_rho`).
+- **Vertical S-coordinates need `Vtransform`, `Vstretching`, `theta_s`, `theta_b`, `hc`.** These are in `ocean.in` and define how levels stretch with bathymetry.
+- **COAWST coupling uses MCT**, not just the `ESM/` directory. MCT is a separate dependency. The `ESM/` directory provides the ESMF/NUOPC layer; COAWST workflows pre-date NUOPC and use MCT.
+
 ## Status
 
-Scaffold (v0.1.0-scaffold). Source-grounded layout verified. Operational depth being filled in.
+Scaffold (v0.1.0-scaffold). Source-grounded layout verified, with Gemini critique pass on 2026-05-09 to fix the S-coordinate description, remove a fabricated CPP switch, and add critical agent gotchas. Operational depth being filled in.
